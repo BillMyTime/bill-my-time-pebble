@@ -1,0 +1,19 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "Tim Allingham",
+    "longName": "Bill My Time",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "shortName": "BillMyTime",
+    "uuid": "294bfb3b-9508-4a28-8c90-c738bef6a65a",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
