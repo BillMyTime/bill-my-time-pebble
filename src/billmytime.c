@@ -10,6 +10,8 @@ static TextLayer *timer_layer;
 
 static AppTimer *timer;
 
+static SimpleMenuLayer *menu_list_layer;
+
 // Set 1 minute time interval for loop on timer
 static const uint32_t timeout_ms = 60000;
 
@@ -22,6 +24,12 @@ static bool running;
 
 // fonts
 static GFont timer_font;
+
+// holders for menu entries
+static SimpleMenuSection list_menu_sections[1];
+static SimpleMenuItem* list_menu_items;
+static char* menu_action;
+static int page;
 
 // Function decs
 void timer_callback(void *context);
@@ -38,6 +46,13 @@ void submit_time_to_task(ClickRecognizerRef recognizer, Window *window);
 static void init(void);
 static void deinit(void);
 int main(void);
+static void in_received_handler(DictionaryIterator *received, void *context);
+static void in_dropped_handler(AppMessageResult reason, void *context);
+static void out_sent_handler(DictionaryIterator *sent, void *context);
+static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context);
+void select_menu_callback (int index, void *context);
+
+
 
 // check if timer is running, and update display if so, always restart the timer loop
 void timer_callback(void *context) {
@@ -54,14 +69,11 @@ void timer_callback(void *context) {
 //Update the display
 void update_timer_layer() {
 	static char time_display[] = "00:00";
-	if (elapsed_time > 0 ) {
-		// Get hours and minutes for display
-		int minutes = (int)elapsed_time / 60 % 60;
-    int hours = (int)elapsed_time / 3600;
-		snprintf(time_display, 6, "%02d:%02d", hours, minutes);
-	}
+	// Get hours and minutes for display
+	int minutes = (int)elapsed_time / 60 % 60;
+	int hours = (int)elapsed_time / 3600;
+	snprintf(time_display, 6, "%02d:%02d", hours, minutes);
 	text_layer_set_text(timer_layer, time_display);
-	
 }
 
 
@@ -94,8 +106,7 @@ static void click_config_provider(void* context) {
 // Button handlers
 void toggle_timer_click(ClickRecognizerRef recognizer, Window *window) {
     if(running) {
-			static char textdebug[] = "toggle triggered stop";
-			text_layer_set_text(text_layer, textdebug );
+			text_layer_set_text(text_layer, "toggle triggered stop" );
 			stop_timer();
     } else {
 			text_layer_set_text(text_layer, "toggle triggered start");
@@ -107,14 +118,26 @@ void toggle_timer_click(ClickRecognizerRef recognizer, Window *window) {
 void cancel_timer_click(ClickRecognizerRef recognizer, Window *window) {
 	if (running) {
 		// currently just acts as timer stop, will later change this to present a are you sure prompt, as it likely is an incorrect click
+		stop_timer();
+
+	text_layer_set_text(text_layer, "Cancel Pressed, with running timer");
 	} else {
 		elapsed_time = 0;
+		start_time = 0;
 		update_timer_layer();
+		text_layer_set_text(text_layer, "Cancel Pressed when stopped");
 	}
 }
 // Select another task for the current project, or create a new (unnamed) task
 void change_task_click(ClickRecognizerRef recognizer, Window *window) {
 	// TODO: retrive task list via JSON and fill menu
+	static DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	Tuplet value = TupletCString(0, "getTasks");
+	dict_write_tuplet(iter, &value);
+	Tuplet pager = TupletInteger(1, page);
+	dict_write_tuplet(iter, &pager);
+	app_message_outbox_send();
 }
 // Select another project for current client
 void change_project_click(ClickRecognizerRef recognizer, Window *window) {
@@ -129,19 +152,92 @@ void submit_time_to_task(ClickRecognizerRef recognizer, Window *window) {
 	//TODO: JSON post to record time interval
 }
 
+// Appmessage callbacks
+void out_sent_handler(DictionaryIterator *sent, void *context) {
+   // outgoing message was delivered
+ }
+
+
+ void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
+   // outgoing message failed
+ }
+
+
+ void in_received_handler(DictionaryIterator *received, void *context) {
+	int count = 0;
+	Tuple *tuple = dict_read_first(received);
+	static char* section_title;
+	while(tuple){
+			count ++;
+			if (tuple->key == 0) {
+				menu_action = tuple->value->cstring;
+			}
+			tuple = dict_read_next(received);
+	}
+	int number_of_entries = count - 1;
+	list_menu_items = malloc(number_of_entries * sizeof(SimpleMenuItem));
+	int i = 0;
+	tuple = dict_read_first(received);
+	while (tuple) {
+			if(tuple->key != 0){
+					list_menu_items[i] = (SimpleMenuItem){
+							.title = tuple->value->cstring,
+							.callback = select_menu_callback
+					};
+					i++;
+			}
+			tuple = dict_read_next(received);
+	}
+	if  (strcmp(menu_action, "c") == 0) {
+			section_title = "Clients";
+	} else if(strcmp(menu_action, "t") == 0) {
+			section_title = "Tasks";
+	} else if (strcmp(menu_action, "p") == 0) {
+			section_title = "Projects";
+	} else {
+			section_title = "Select";
+	}
+	list_menu_sections[0] = (SimpleMenuSection){
+			.title = section_title,
+			.num_items = number_of_entries,
+			.items = list_menu_items
+	};
+	Layer *window_layer = window_get_root_layer(window);
+	menu_list_layer = simple_menu_layer_create(GRect(0, 0, 144, 168), window, list_menu_sections, 1, NULL);
+	text_layer_destroy(timer_layer);
+	layer_add_child(window_layer, (Layer*)menu_list_layer);
+ }
+
+
+ void in_dropped_handler(AppMessageResult reason, void *context) {
+   // incoming message dropped
+ }
+
+
+ // Menu callback
+ void select_menu_callback(int index, void *context) {
+	// placeholder
+ }
+
 static void init(void) {
   window = window_create();
 	running = false;
   Layer *window_layer = window_get_root_layer(window);
-  GRect bounds = layer_get_bounds(window_layer);
 
   const bool animated = true;
-	window_set_background_color(window, GColorBlack);
+	window_set_background_color(window, GColorWhite);
   window_set_fullscreen(window, false);
 	window_stack_push(window, animated);
+	page = 1; // set to 1 for initial paging on menus
 
 	// Arrange for user input.
 	window_set_click_config_provider(window, (ClickConfigProvider) click_config_provider);
+
+	app_message_register_inbox_received(in_received_handler);
+	app_message_register_inbox_dropped(in_dropped_handler);
+	app_message_register_outbox_sent(out_sent_handler);
+	app_message_register_outbox_failed(out_failed_handler);
+
 
 	timer_font = fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS);
 	timer_layer = text_layer_create(GRect(0, 80, 144, 84));
@@ -150,16 +246,21 @@ static void init(void) {
 	text_layer_set_text_color(timer_layer, GColorWhite);
 	text_layer_set_text(timer_layer, "00:00");
 	text_layer_set_text_alignment(timer_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, (Layer*)timer_layer);
+  layer_add_child(window_layer, text_layer_get_layer(timer_layer));
 
 	text_layer = text_layer_create(GRect(0, 0, 144, 80));
 	text_layer_set_background_color(text_layer, GColorWhite);
 	text_layer_set_text_color(text_layer, GColorBlack);
 	text_layer_set_text(text_layer, "Not Running");
 	text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, (Layer*)text_layer);
-  //timer = app_timer_register(timeout_ms, timer_callback, NULL);
+  layer_add_child(window_layer, text_layer_get_layer(text_layer));
+
+	const uint32_t inbound_size = app_message_inbox_size_maximum();
+	const uint32_t outbound_size = app_message_outbox_size_maximum();
+	app_message_open(inbound_size, outbound_size);
 }
+
+
 
 static void deinit(void) {
 
