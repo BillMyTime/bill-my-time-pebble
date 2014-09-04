@@ -4,6 +4,8 @@
 
 static Window *window;
 
+static Window *menu_window;
+
 static TextLayer *text_layer;
 
 static TextLayer *timer_layer;
@@ -24,6 +26,7 @@ static bool running;
 
 // fonts
 static GFont timer_font;
+static GFont text_font;
 
 // holders for menu entries
 static SimpleMenuSection list_menu_sections[1];
@@ -68,11 +71,11 @@ void timer_callback(void *context) {
 
 //Update the display
 void update_timer_layer() {
-	static char time_display[] = "00:00";
+	static char time_display[] = "00h00m";
 	// Get hours and minutes for display
 	int minutes = (int)elapsed_time / 60 % 60;
 	int hours = (int)elapsed_time / 3600;
-	snprintf(time_display, 6, "%02d:%02d", hours, minutes);
+	snprintf(time_display, 8, "%02dh%02dm", hours, minutes);
 	text_layer_set_text(timer_layer, time_display);
 }
 
@@ -202,10 +205,13 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 			.num_items = number_of_entries,
 			.items = list_menu_items
 	};
-	Layer *window_layer = window_get_root_layer(window);
-	menu_list_layer = simple_menu_layer_create(GRect(0, 0, 144, 168), window, list_menu_sections, 1, NULL);
-	text_layer_destroy(timer_layer);
-	layer_add_child(window_layer, (Layer*)menu_list_layer);
+	window_stack_push(menu_window, true);
+
+	Layer *window_layer = window_get_root_layer(menu_window);
+	menu_list_layer = simple_menu_layer_create(GRect(0, 5, 144, 163), menu_window, list_menu_sections, 1, NULL);
+	//layer_set_hidden(text_layer_get_layer(timer_layer));
+	//layer_set_hidden(text_layer_get_layer(text_layer));
+	layer_add_child(window_layer, simple_menu_layer_get_layer(menu_list_layer));
  }
 
 
@@ -220,41 +226,52 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
  }
 
 static void init(void) {
-  window = window_create();
+	// Set initial value to track timer start/stop
 	running = false;
-  Layer *window_layer = window_get_root_layer(window);
+	// Set variables to use for animated windows
+	const bool animated = true;
 
-  const bool animated = true;
+	// Set up the base window
+  window = window_create();
+  Layer *window_layer = window_get_root_layer(window);
 	window_set_background_color(window, GColorWhite);
   window_set_fullscreen(window, false);
 	window_stack_push(window, animated);
 	page = 1; // set to 1 for initial paging on menus
 
-	// Arrange for user input.
+	// Bind input for base window
 	window_set_click_config_provider(window, (ClickConfigProvider) click_config_provider);
 
-	app_message_register_inbox_received(in_received_handler);
-	app_message_register_inbox_dropped(in_dropped_handler);
-	app_message_register_outbox_sent(out_sent_handler);
-	app_message_register_outbox_failed(out_failed_handler);
-
-
-	timer_font = fonts_get_system_font(FONT_KEY_BITHAM_42_MEDIUM_NUMBERS);
+	// Set up layers for base window
+	timer_font = fonts_get_system_font(FONT_KEY_DROID_SERIF_28_BOLD);
 	timer_layer = text_layer_create(GRect(0, 80, 144, 84));
 	text_layer_set_background_color(timer_layer, GColorBlack);
   text_layer_set_font(timer_layer, timer_font);
 	text_layer_set_text_color(timer_layer, GColorWhite);
-	text_layer_set_text(timer_layer, "00:00");
+	text_layer_set_text(timer_layer, "00h00m");
 	text_layer_set_text_alignment(timer_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(timer_layer));
 
+	text_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 	text_layer = text_layer_create(GRect(0, 0, 144, 80));
 	text_layer_set_background_color(text_layer, GColorWhite);
+  text_layer_set_font(text_layer, text_font);
 	text_layer_set_text_color(text_layer, GColorBlack);
 	text_layer_set_text(text_layer, "Not Running");
 	text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
 
+	// Set up menu window, but don't push to stack yet
+	menu_window = window_create();
+	window_set_background_color(menu_window, GColorWhite);
+  window_set_fullscreen(menu_window, true);
+
+	// Bind appmessage callbacks
+	app_message_register_inbox_received(in_received_handler);
+	app_message_register_inbox_dropped(in_dropped_handler);
+	app_message_register_outbox_sent(out_sent_handler);
+	app_message_register_outbox_failed(out_failed_handler);
+	// Configure inbox/outbot for appmessage
 	const uint32_t inbound_size = app_message_inbox_size_maximum();
 	const uint32_t outbound_size = app_message_outbox_size_maximum();
 	app_message_open(inbound_size, outbound_size);
