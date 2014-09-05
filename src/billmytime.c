@@ -37,7 +37,7 @@ static char* menu_action;
 static int page;
 
 // Function decs
-void timer_callback(void *context);
+void timer_callback(struct tm *tick_time, TimeUnits units_changed);
 void update_timer_layer();
 void start_timer();
 void stop_timer();
@@ -59,24 +59,23 @@ void select_menu_callback (int index, void *context);
 
 
 // check if timer is running, and update display if so, always restart the timer loop
-void timer_callback(void *context) {
+void timer_callback(struct tm *tick_time, TimeUnits units_changed) {
 	if(running) {
 		static int now;
 		now = time(NULL);
 		elapsed_time = now - start_time;
 		update_timer_layer();
 	}
-  timer = app_timer_register(timeout_ms, timer_callback, NULL);
 }
 
 
 //Update the display
 void update_timer_layer() {
-	static char time_display[] = "00h00m";
+	static char time_display[] = "00h 00m";
 	// Get hours and minutes for display
 	int minutes = (int)elapsed_time / 60 % 60;
 	int hours = (int)elapsed_time / 3600;
-	snprintf(time_display, 8, "%02dh%02dm", hours, minutes);
+	snprintf(time_display, 8, "%02dh %02dm", hours, minutes);
 	text_layer_set_text(timer_layer, time_display);
 }
 
@@ -86,15 +85,12 @@ void start_timer() {
 	if(start_time == 0) { // shouldn't be needed, just in case of unhandled exceptions
 		start_time = time(NULL);
 	}
-  timer = app_timer_register(timeout_ms, timer_callback, NULL);
+	tick_timer_service_subscribe(MINUTE_UNIT, timer_callback);
 }
 
 void stop_timer() {
     running = false;
-    if(timer != NULL) {
-			app_timer_cancel(timer);
-			timer = NULL;
-    }
+			tick_timer_service_unsubscribe();
 }
 
 // set up button clicks or base window
@@ -271,7 +267,7 @@ static void init(void) {
 	text_layer_set_background_color(timer_layer, GColorBlack);
   text_layer_set_font(timer_layer, timer_font);
 	text_layer_set_text_color(timer_layer, GColorWhite);
-	text_layer_set_text(timer_layer, "00h00m");
+	text_layer_set_text(timer_layer, "00h 00m");
 	text_layer_set_text_alignment(timer_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(timer_layer));
 
