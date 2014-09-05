@@ -1,9 +1,19 @@
 
 var localStorage = window.localStorage;
+var example = 1;
+
+var importjQuery = function() {
+    var script = document.createElement('script');
+    script.src = 'http://code.jquery.com/jquery-latest.min.js';
+    script.type = 'text/javascript';
+    document.getElementsByTagName('head')[0].appendChild(script);
+};
+
 
 Pebble.addEventListener("ready",
   function(e) {
-    console.log("JavaScript app ready and running!");
+    importjQuery();
+    console.log("Pebble JS Ready!");
   }
 );
 
@@ -19,13 +29,21 @@ Pebble.addEventListener("webviewclosed", function(e) {
 
 
 Pebble.addEventListener("appmessage", function(e){
-	// sample code, just provides a single task back on request currently
-	var action = e.payload[0];
-	var data = {};
-	if (action == "getTasks") {
-		// prep a sample object to send
-		data = {'0': 't', '1': 'Making Awesome Happen', '2': 'Submitting Awesome'};
-	}
-	Pebble.sendAppMessage(data);
+  var action = e.payload[0];
+  var returnData = {};
+  if (action == "getTasks") {
+    if (example) {
+      // sample code, just provides a single task back on request currently
+      // prep a sample object to send
+      returnData = {'0': 't', '1': 'Making Awesome', '2': 'Submitting Awesome', '3': 'Sharing Awesome'};
+    } else {
+      var projectID = localStorage.getItem("currentproject");
+      $.getJSON('https://www.billmytime.net/ajax/get-task-list/' + projectID, function(data) {
+
+        });
+    }
+    localStorage.setItem("tasklist", returnData);
+  }
+  Pebble.sendAppMessage(returnData);
 
 });
