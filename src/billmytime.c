@@ -10,14 +10,7 @@ static TextLayer *text_layer;
 
 static TextLayer *timer_layer;
 
-static AppTimer *timer;
-
 static SimpleMenuLayer *menu_list_layer;
-
-//static WindowHandlers *menu_window_handlers;
-
-// Set 1 minute time interval for loop on timer
-static const uint32_t timeout_ms = 60000;
 
 // Time values
 static int elapsed_time; // diff for now - start time
@@ -136,46 +129,55 @@ void change_task_click(ClickRecognizerRef recognizer, Window *window) {
 	dict_write_tuplet(iter, &value);
 	Tuplet pager = TupletInteger(1, page);
 	dict_write_tuplet(iter, &pager);
+	dict_write_end(iter);
 	app_message_outbox_send();
 }
 // Select another project for current client
 void change_project_click(ClickRecognizerRef recognizer, Window *window) {
 	// TODO: retrieve project list and present in menu
+	static DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	Tuplet value = TupletCString(0, "getProjects");
+	dict_write_tuplet(iter, &value);
+	Tuplet pager = TupletInteger(1, page);
+	dict_write_tuplet(iter, &pager);
+	dict_write_end(iter);
+	app_message_outbox_send();
 }
 // Change to another client
 void change_client_click(ClickRecognizerRef recognizer, Window *window) {
 	// TODO: return filtered list of clients (grouped by first letter)
+		static DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	Tuplet value = TupletCString(0, "getClients");
+	dict_write_tuplet(iter, &value);
+	Tuplet pager = TupletInteger(1, page);
+	dict_write_tuplet(iter, &pager);
+	dict_write_end(iter);
+	app_message_outbox_send();
 }
 
 void submit_time_to_task(ClickRecognizerRef recognizer, Window *window) {
 	//TODO: JSON post to record time interval
+	static DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	Tuplet value = TupletCString(0, "postTask");
+	dict_write_tuplet(iter, &value);
+	Tuplet start = TupletInteger(1, start_time);
+	dict_write_tuplet(iter, &start);
+	Tuplet duration = TupletInteger(1, elapsed_time);
+	dict_write_tuplet(iter, &duration);
+	dict_write_end(iter);
+	app_message_outbox_send();
 }
 
 static void menu_window_unload(Window *window) {
   simple_menu_layer_destroy(menu_list_layer);
-		text_layer_set_text(text_layer, "Destroyed menu layer");
-		free(list_menu_items);
-		free(list_menu_sections);
-
-
 }
 
 static void menu_window_load(Window *window) {
 	// No actions needed - may refactor creation of layers to here instead of the appmessage handler
 }
-
-static void menu_window_appear(Window *window) {
-		layer_mark_dirty((Layer*)simple_menu_layer_get_menu_layer(menu_list_layer));
-		layer_mark_dirty(simple_menu_layer_get_layer(menu_list_layer));
-}
-
-// Window Handlers
-static WindowHandlers menu_window_handlers = {
-  .load = menu_window_load,
-  .unload = menu_window_unload,
-	.appear = menu_window_appear
-};
-
 
 
 // Appmessage callbacks
@@ -186,13 +188,14 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 
  void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
    // outgoing message failed
+	 APP_LOG(APP_LOG_LEVEL_WARNING, "Appmessage was not delivered");
  }
 
 
  void in_received_handler(DictionaryIterator *received, void *context) {
 	int count = 0;
 	Tuple *tuple = dict_read_first(received);
-	static char* section_title;
+	static char* section_title = "Menu title";
 	while(tuple){
 			count ++;
 			if (tuple->key == 0) {
@@ -247,20 +250,32 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
  void select_menu_callback(int index, void *context) {
 	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
-	Tuplet action_type;
+	static char* select_action;
 	if  (strcmp(menu_action, "c") == 0) {
-			Tuplet action_type = TupletCString(0, "selectClient");
+		select_action = "selClient";
+		//Tuplet action_type = TupletCString(0, "selClient");
+		//dict_write_tuplet(iter, &action_type);
 	} else if(strcmp(menu_action, "t") == 0) {
-			Tuplet action_type = TupletCString(0, "selectTask");
+		select_action = "selTask";
+		//Tuplet action_type = TupletCString(0, "selTask");
+		//dict_write_tuplet(iter, &action_type);
 
 	} else if (strcmp(menu_action, "p") == 0) {
-			Tuplet action_type = TupletCString(0, "selectProject");
+		select_action = "selProj";
+			//Tuplet action_type = TupletCString(0, "selProj");
+			//dict_write_tuplet(iter, &action_type);
 			text_layer_set_text(text_layer, list_menu_items[index].title);
+	} else {
+		// strcmp failed to find a match
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "No match on strcmp, value of menu_action follows");
+		APP_LOG(APP_LOG_LEVEL_DEBUG, menu_action);
 	}
+	Tuplet action_type = TupletCString(0, select_action);
 	dict_write_tuplet(iter, &action_type);
 	Tuplet selected = TupletInteger(1, index);
 	dict_write_tuplet(iter, &selected);
-	app_message_outbox_send();
+	dict_write_end(iter);
+	app_message_outbox_send(); // this send is causing crash :S
 
 
 	//pop the menu off
@@ -307,6 +322,11 @@ static void init(void) {
 	menu_window = window_create();
 	window_set_background_color(menu_window, GColorWhite);
   window_set_fullscreen(menu_window, true);
+	// Window Handlers
+	window_set_window_handlers(menu_window, (WindowHandlers) {
+		.load = menu_window_load,
+		.unload = menu_window_unload,
+	});
 
 	// Bind appmessage callbacks
 	app_message_register_inbox_received(in_received_handler);

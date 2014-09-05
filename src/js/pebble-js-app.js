@@ -42,6 +42,18 @@ Pebble.addEventListener("appmessage", function(e){
         });
     }
     localStorage.setItem("tasklist", returnData);
-  }
-  Pebble.sendAppMessage(returnData);
+  } else if (action == "getClients") {
+		if (example) {
+			returnData = {'0': 'c', '1': 'Acme Inc', '2': 'Pebble Technology', '3': 'Bill my Time'}
+		}
+	} else if (action == "getProjects") {
+		if (example) {
+			returnData = {'0': 'p', '1': 'Build the app', '2': 'Build the site'};
+		}
+	} else if (action == "selProj") {
+		localStorage.setItem('currentproject', e.payload[1]);
+	}
+	if (returnData) {
+		Pebble.sendAppMessage(returnData);
+	}
 });
