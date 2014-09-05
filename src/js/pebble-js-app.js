@@ -1,6 +1,6 @@
 
 var localStorage = window.localStorage;
-
+var example = 1;
 Pebble.addEventListener("ready",
   function(e) {
     console.log("JavaScript app ready and running!");
@@ -23,8 +23,13 @@ Pebble.addEventListener("appmessage", function(e){
 	var action = e.payload[0];
 	var data = {};
 	if (action == "getTasks") {
-		// prep a sample object to send
-		data = {'0': 't', '1': 'Making Awesome Happen', '2': 'Submitting Awesome'};
+		if (example) {
+			// prep a sample object to send
+			data = {'0': 't', '1': 'Making Awesome Happen', '2': 'Submitting Awesome'};
+		} else {
+
+		}
+		localStorage.setItem("tasklist", data);
 	}
 	Pebble.sendAppMessage(data);
 
