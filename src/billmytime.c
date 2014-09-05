@@ -97,20 +97,18 @@ void stop_timer() {
 static void click_config_provider(void* context) {
 	window_single_click_subscribe(BUTTON_ID_SELECT, (ClickHandler)toggle_timer_click);
 	window_single_click_subscribe(BUTTON_ID_UP, (ClickHandler)cancel_timer_click);
-	window_single_click_subscribe(BUTTON_ID_DOWN, (ClickHandler)change_task_click);
-	window_long_click_subscribe(BUTTON_ID_DOWN, 700, (ClickHandler)change_project_click, NULL);
+	window_single_click_subscribe(BUTTON_ID_DOWN, (ClickHandler)submit_time_to_task);
+	window_long_click_subscribe(BUTTON_ID_DOWN, 700, (ClickHandler)change_task_click, NULL);
 	window_long_click_subscribe(BUTTON_ID_UP, 700, (ClickHandler)change_client_click, NULL);
-	window_long_click_subscribe(BUTTON_ID_SELECT, 700, (ClickHandler)submit_time_to_task, NULL);
+	window_long_click_subscribe(BUTTON_ID_SELECT, 700, (ClickHandler)change_project_click, NULL);
 }
 
 // Button handlers
 // Start/stop timer
 void toggle_timer_click(ClickRecognizerRef recognizer, Window *window) {
     if(running) {
-			text_layer_set_text(text_layer, "toggle triggered stop" );
 			stop_timer();
     } else {
-			text_layer_set_text(text_layer, "toggle triggered start");
 			start_timer();
     }
 }
@@ -166,10 +164,16 @@ static void menu_window_load(Window *window) {
 	// No actions needed - may refactor creation of layers to here instead of the appmessage handler
 }
 
+static void menu_window_appear(Window *window) {
+		layer_mark_dirty((Layer*)simple_menu_layer_get_menu_layer(menu_list_layer));
+		layer_mark_dirty(simple_menu_layer_get_layer(menu_list_layer));
+}
+
 // Window Handlers
 static WindowHandlers menu_window_handlers = {
   .load = menu_window_load,
-  .unload = menu_window_unload
+  .unload = menu_window_unload,
+	.appear = menu_window_appear
 };
 
 
@@ -241,7 +245,26 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 
  // Menu callback
  void select_menu_callback(int index, void *context) {
-	// placeholder
+	static DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	Tuplet action_type;
+	if  (strcmp(menu_action, "c") == 0) {
+			Tuplet action_type = TupletCString(0, "selectClient");
+	} else if(strcmp(menu_action, "t") == 0) {
+			Tuplet action_type = TupletCString(0, "selectTask");
+
+	} else if (strcmp(menu_action, "p") == 0) {
+			Tuplet action_type = TupletCString(0, "selectProject");
+			text_layer_set_text(text_layer, list_menu_items[index].title);
+	}
+	dict_write_tuplet(iter, &action_type);
+	Tuplet selected = TupletInteger(1, index);
+	dict_write_tuplet(iter, &selected);
+	app_message_outbox_send();
+
+
+	//pop the menu off
+	window_stack_pop(true);
  }
 
 static void init(void) {
@@ -276,7 +299,7 @@ static void init(void) {
 	text_layer_set_background_color(text_layer, GColorWhite);
   text_layer_set_font(text_layer, text_font);
 	text_layer_set_text_color(text_layer, GColorBlack);
-	text_layer_set_text(text_layer, "Not Running");
+	text_layer_set_text(text_layer, "No Project Selected");
 	text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(text_layer));
 
