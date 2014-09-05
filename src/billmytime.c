@@ -14,6 +14,8 @@ static AppTimer *timer;
 
 static SimpleMenuLayer *menu_list_layer;
 
+//static WindowHandlers *menu_window_handlers;
+
 // Set 1 minute time interval for loop on timer
 static const uint32_t timeout_ms = 60000;
 
@@ -56,7 +58,6 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 void select_menu_callback (int index, void *context);
 
 
-
 // check if timer is running, and update display if so, always restart the timer loop
 void timer_callback(struct tm *tick_time, TimeUnits units_changed) {
 	if(running) {
@@ -92,7 +93,7 @@ void stop_timer() {
 			tick_timer_service_unsubscribe();
 }
 
-// set up button clicks
+// set up button clicks or base window
 static void click_config_provider(void* context) {
 	window_single_click_subscribe(BUTTON_ID_SELECT, (ClickHandler)toggle_timer_click);
 	window_single_click_subscribe(BUTTON_ID_UP, (ClickHandler)cancel_timer_click);
@@ -103,6 +104,7 @@ static void click_config_provider(void* context) {
 }
 
 // Button handlers
+// Start/stop timer
 void toggle_timer_click(ClickRecognizerRef recognizer, Window *window) {
     if(running) {
 			text_layer_set_text(text_layer, "toggle triggered stop" );
@@ -150,6 +152,27 @@ void change_client_click(ClickRecognizerRef recognizer, Window *window) {
 void submit_time_to_task(ClickRecognizerRef recognizer, Window *window) {
 	//TODO: JSON post to record time interval
 }
+
+static void menu_window_unload(Window *window) {
+  simple_menu_layer_destroy(menu_list_layer);
+		text_layer_set_text(text_layer, "Destroyed menu layer");
+		free(list_menu_items);
+		free(list_menu_sections);
+
+
+}
+
+static void menu_window_load(Window *window) {
+	// No actions needed - may refactor creation of layers to here instead of the appmessage handler
+}
+
+// Window Handlers
+static WindowHandlers menu_window_handlers = {
+  .load = menu_window_load,
+  .unload = menu_window_unload
+};
+
+
 
 // Appmessage callbacks
 void out_sent_handler(DictionaryIterator *sent, void *context) {

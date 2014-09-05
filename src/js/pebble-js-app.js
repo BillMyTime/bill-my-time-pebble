@@ -9,7 +9,6 @@ var importjQuery = function() {
     document.getElementsByTagName('head')[0].appendChild(script);
 };
 
-
 Pebble.addEventListener("ready",
   function(e) {
     importjQuery();
@@ -45,5 +44,4 @@ Pebble.addEventListener("appmessage", function(e){
     localStorage.setItem("tasklist", returnData);
   }
   Pebble.sendAppMessage(returnData);
-
 });
