@@ -111,18 +111,14 @@ void cancel_timer_click(ClickRecognizerRef recognizer, Window *window) {
 	if (running) {
 		// currently just acts as timer stop, will later change this to present a are you sure prompt, as it likely is an incorrect click
 		stop_timer();
-
-	text_layer_set_text(text_layer, "Cancel Pressed, with running timer");
 	} else {
 		elapsed_time = 0;
 		start_time = 0;
 		update_timer_layer();
-		text_layer_set_text(text_layer, "Cancel Pressed when stopped");
 	}
 }
 // Select another task for the current project, or create a new (unnamed) task
 void change_task_click(ClickRecognizerRef recognizer, Window *window) {
-	// TODO: retrive task list via JSON and fill menu
 	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "getTasks");
@@ -134,7 +130,6 @@ void change_task_click(ClickRecognizerRef recognizer, Window *window) {
 }
 // Select another project for current client
 void change_project_click(ClickRecognizerRef recognizer, Window *window) {
-	// TODO: retrieve project list and present in menu
 	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "getProjects");
@@ -146,8 +141,7 @@ void change_project_click(ClickRecognizerRef recognizer, Window *window) {
 }
 // Change to another client
 void change_client_click(ClickRecognizerRef recognizer, Window *window) {
-	// TODO: return filtered list of clients (grouped by first letter)
-		static DictionaryIterator *iter;
+	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "getClients");
 	dict_write_tuplet(iter, &value);
@@ -158,7 +152,6 @@ void change_client_click(ClickRecognizerRef recognizer, Window *window) {
 }
 
 void submit_time_to_task(ClickRecognizerRef recognizer, Window *window) {
-	//TODO: JSON post to record time interval
 	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "postTask");
@@ -235,8 +228,6 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 
 	Layer *window_layer = window_get_root_layer(menu_window);
 	menu_list_layer = simple_menu_layer_create(GRect(0, 5, 144, 163), menu_window, list_menu_sections, 1, NULL);
-	//layer_set_hidden(text_layer_get_layer(timer_layer));
-	//layer_set_hidden(text_layer_get_layer(text_layer));
 	layer_add_child(window_layer, simple_menu_layer_get_layer(menu_list_layer));
  }
 
@@ -253,18 +244,12 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 	static char* select_action;
 	if  (strcmp(menu_action, "c") == 0) {
 		select_action = "selClient";
-		//Tuplet action_type = TupletCString(0, "selClient");
-		//dict_write_tuplet(iter, &action_type);
 	} else if(strcmp(menu_action, "t") == 0) {
 		select_action = "selTask";
-		//Tuplet action_type = TupletCString(0, "selTask");
-		//dict_write_tuplet(iter, &action_type);
 
 	} else if (strcmp(menu_action, "p") == 0) {
 		select_action = "selProj";
-			//Tuplet action_type = TupletCString(0, "selProj");
-			//dict_write_tuplet(iter, &action_type);
-			text_layer_set_text(text_layer, list_menu_items[index].title);
+		text_layer_set_text(text_layer, list_menu_items[index].title);
 	} else {
 		// strcmp failed to find a match
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "No match on strcmp, value of menu_action follows");
@@ -276,7 +261,6 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 	dict_write_tuplet(iter, &selected);
 	dict_write_end(iter);
 	app_message_outbox_send(); // this send is causing crash :S
-
 
 	//pop the menu off
 	window_stack_pop(true);
