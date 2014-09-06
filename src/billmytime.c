@@ -34,6 +34,8 @@ static SimpleMenuSection list_menu_sections[1];
 static SimpleMenuItem* list_menu_items;
 static char* menu_action;
 static int page;
+static SimpleMenuItem* project_item;
+static SimpleMenuItem* task_item;
 
 // Function decs
 void timer_callback(struct tm *tick_time, TimeUnits units_changed);
@@ -243,10 +245,12 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 		select_action = "selClient";
 	} else if(strcmp(menu_action, "t") == 0) {
 		select_action = "selTask";
-		text_layer_set_text(task_layer, list_menu_items[index].title);
+		task_item = (SimpleMenuItem)list_menu_sections[index];
+		text_layer_set_text(task_layer, task_item->title);
 	} else if (strcmp(menu_action, "p") == 0) {
 		select_action = "selProj";
-		text_layer_set_text(project_layer, list_menu_items[index].title);
+		project_item = (SimpleMenuItem)list_menu_sections[index];
+		text_layer_set_text(task_layer, project_item->title);
 	} else {
 		// strcmp failed to find a match
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "No match on strcmp, value of menu_action follows");
