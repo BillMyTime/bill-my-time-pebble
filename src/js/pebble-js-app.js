@@ -30,10 +30,14 @@ Pebble.addEventListener("webviewclosed", function(e) {
 Pebble.addEventListener("appmessage", function(e){
   var action = e.payload[0];
   var returnData = {};
-	var apiuser = localStorage.getItem('apiuser');
-	var apikey = localStorage.setItem('apikey');
+	if (!example) {
+		var apiuser = localStorage.getItem('apiuser');
+		var apikey = localStorage.setItem('apikey');
+	}
+
 	switch (action) {
 		case "getTasks":
+			console.log("received request for task list");
 			if (example) {
 				// sample code, just provides a single task back on request currently
 				// prep a sample object to send
@@ -58,6 +62,7 @@ Pebble.addEventListener("appmessage", function(e){
 			}
 			break;
 		case "getClients":
+			console.log("received request for client list");
 			if (example) {
 				returnData = {'0': 'c', '1': 'Acme Inc', '2': 'Pebble Technology', '3': 'Bill my Time'}
 			} else {
@@ -78,6 +83,7 @@ Pebble.addEventListener("appmessage", function(e){
 			}
 			break;
 		case "getProjects":
+			console.log("received request for project list");
 			if (example) {
 				returnData = {'0': 'p', '1': 'Build the app', '2': 'Build the site'};
 			} else {
@@ -85,11 +91,15 @@ Pebble.addEventListener("appmessage", function(e){
 			}
 			break;
 		case "selProj":
+			console.log("received request to set current project");
 			localStorage.setItem('currentproject', e.payload[1]);
-
+		default:
+			console.log("case is a bitch");
 
 	}
 	if (returnData) {
 		Pebble.sendAppMessage(returnData);
+	} else {
+		Pebble.showSimpleNotificationOnPebble("No data found", "Could not match your request");
 	}
 });
