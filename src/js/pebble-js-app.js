@@ -30,28 +30,64 @@ Pebble.addEventListener("webviewclosed", function(e) {
 Pebble.addEventListener("appmessage", function(e){
   var action = e.payload[0];
   var returnData = {};
-  if (action == "getTasks") {
-    if (example) {
-      // sample code, just provides a single task back on request currently
-      // prep a sample object to send
-      returnData = {'0': 't', '1': 'Making Awesome', '2': 'Submitting Awesome', '3': 'Sharing Awesome'};
-    } else {
-      var projectID = localStorage.getItem("currentproject");
-      $.getJSON('https://www.billmytime.net/ajax/get-task-list/' + projectID, function(data) {
+	var apiuser = localStorage.getItem('apiuser');
+	var apikey = localStorage.setItem('apikey');
+	switch (action) {
+		case "getTasks":
+			if (example) {
+				// sample code, just provides a single task back on request currently
+				// prep a sample object to send
+				returnData = {'0': 't', '1': 'Making Awesome', '2': 'Submitting Awesome', '3': 'Sharing Awesome'};
+			} else {
+				var projectID = localStorage.getItem("currentproject");
+				$.getJSON('https://www.billmytime.net/ajax/get-task-list/' + projectID + '/' + apiuser + '/' + apikey, function(data) {
+						returnData[0] = 't';
+						var i = 1;
+						var menustore = {};
+						$.each(data, function(index, obj) {
+							returnData[i] = obj.title;
+							menustore[i] = {
+								title:obj.title,
+								taskid: obj.id,
+								};
+								i++;
+							});
+						localStorage.setItem("tasklist", JSON.stringify(menustore));
+					});
 
-        });
-    }
-    localStorage.setItem("tasklist", returnData);
-  } else if (action == "getClients") {
-		if (example) {
-			returnData = {'0': 'c', '1': 'Acme Inc', '2': 'Pebble Technology', '3': 'Bill my Time'}
-		}
-	} else if (action == "getProjects") {
-		if (example) {
-			returnData = {'0': 'p', '1': 'Build the app', '2': 'Build the site'};
-		}
-	} else if (action == "selProj") {
-		localStorage.setItem('currentproject', e.payload[1]);
+			}
+			break;
+		case "getClients":
+			if (example) {
+				returnData = {'0': 'c', '1': 'Acme Inc', '2': 'Pebble Technology', '3': 'Bill my Time'}
+			} else {
+				$.getJSON('https://www.billmytime.net/ajax/get-client-list/' + apiuser + '/' + apikey, function(data) {
+					returnData[0] = 'c';
+					var i = 1;
+					var menustore = {};
+					$.each(data, function(index, obj) {
+						returnData[i] = obj.title;
+						menustore[i] = {
+							title:obj.title,
+							clientid: obj.id,
+						};
+						i++;
+					});
+					localStorage.setItem("clientlist", JSON.stringify(menustore));
+				});
+			}
+			break;
+		case "getProjects":
+			if (example) {
+				returnData = {'0': 'p', '1': 'Build the app', '2': 'Build the site'};
+			} else {
+
+			}
+			break;
+		case "selProj":
+			localStorage.setItem('currentproject', e.payload[1]);
+
+
 	}
 	if (returnData) {
 		Pebble.sendAppMessage(returnData);

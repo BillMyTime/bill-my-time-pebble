@@ -6,11 +6,16 @@ static Window *window;
 
 static Window *menu_window;
 
-static TextLayer *text_layer;
+static TextLayer *project_layer;
+
+static TextLayer *task_layer;
 
 static TextLayer *timer_layer;
 
 static SimpleMenuLayer *menu_list_layer;
+
+static DictionaryIterator *iter;
+
 
 // Time values
 static int elapsed_time; // diff for now - start time
@@ -21,7 +26,8 @@ static bool running;
 
 // fonts
 static GFont timer_font;
-static GFont text_font;
+static GFont project_font;
+static GFont task_font;
 
 // holders for menu entries
 static SimpleMenuSection list_menu_sections[1];
@@ -119,40 +125,33 @@ void cancel_timer_click(ClickRecognizerRef recognizer, Window *window) {
 }
 // Select another task for the current project, or create a new (unnamed) task
 void change_task_click(ClickRecognizerRef recognizer, Window *window) {
-	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "getTasks");
 	dict_write_tuplet(iter, &value);
 	Tuplet pager = TupletInteger(1, page);
 	dict_write_tuplet(iter, &pager);
-	dict_write_end(iter);
 	app_message_outbox_send();
 }
 // Select another project for current client
 void change_project_click(ClickRecognizerRef recognizer, Window *window) {
-	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "getProjects");
 	dict_write_tuplet(iter, &value);
 	Tuplet pager = TupletInteger(1, page);
 	dict_write_tuplet(iter, &pager);
-	dict_write_end(iter);
 	app_message_outbox_send();
 }
 // Change to another client
 void change_client_click(ClickRecognizerRef recognizer, Window *window) {
-	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "getClients");
 	dict_write_tuplet(iter, &value);
 	Tuplet pager = TupletInteger(1, page);
 	dict_write_tuplet(iter, &pager);
-	dict_write_end(iter);
 	app_message_outbox_send();
 }
 
 void submit_time_to_task(ClickRecognizerRef recognizer, Window *window) {
-	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	Tuplet value = TupletCString(0, "postTask");
 	dict_write_tuplet(iter, &value);
@@ -160,7 +159,6 @@ void submit_time_to_task(ClickRecognizerRef recognizer, Window *window) {
 	dict_write_tuplet(iter, &start);
 	Tuplet duration = TupletInteger(1, elapsed_time);
 	dict_write_tuplet(iter, &duration);
-	dict_write_end(iter);
 	app_message_outbox_send();
 }
 
@@ -239,21 +237,25 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 
  // Menu callback
  void select_menu_callback(int index, void *context) {
-	static DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	static char* select_action;
 	if  (strcmp(menu_action, "c") == 0) {
 		select_action = "selClient";
 	} else if(strcmp(menu_action, "t") == 0) {
 		select_action = "selTask";
-
+		text_layer_set_text(task_layer, list_menu_items[index].title);
 	} else if (strcmp(menu_action, "p") == 0) {
 		select_action = "selProj";
-		text_layer_set_text(text_layer, list_menu_items[index].title);
+		text_layer_set_text(project_layer, list_menu_items[index].title);
 	} else {
 		// strcmp failed to find a match
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "No match on strcmp, value of menu_action follows");
 		APP_LOG(APP_LOG_LEVEL_DEBUG, menu_action);
+	}
+	if (index > 0) {
+
+	} else {
+		index = 2;
 	}
 	Tuplet action_type = TupletCString(0, select_action);
 	dict_write_tuplet(iter, &action_type);
@@ -293,14 +295,24 @@ static void init(void) {
 	text_layer_set_text_alignment(timer_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(timer_layer));
 
-	text_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-	text_layer = text_layer_create(GRect(0, 0, 144, 80));
-	text_layer_set_background_color(text_layer, GColorWhite);
-  text_layer_set_font(text_layer, text_font);
-	text_layer_set_text_color(text_layer, GColorBlack);
-	text_layer_set_text(text_layer, "No Project Selected");
-	text_layer_set_text_alignment(text_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(text_layer));
+	project_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+	project_layer = text_layer_create(GRect(0, 0, 144, 40));
+	text_layer_set_background_color(project_layer, GColorWhite);
+  text_layer_set_font(project_layer, project_font);
+	text_layer_set_text_color(project_layer, GColorBlack);
+	text_layer_set_text(project_layer, "No Project Selected");
+	text_layer_set_text_alignment(project_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(project_layer));
+
+	task_font = fonts_get_system_font(FONT_KEY_GOTHIC_18);
+	task_layer = text_layer_create(GRect(0, 40, 144, 40));
+	text_layer_set_background_color(task_layer, GColorWhite);
+  text_layer_set_font(task_layer, task_font);
+	text_layer_set_text_color(task_layer, GColorBlack);
+	text_layer_set_text(task_layer, "No Task Selected");
+	text_layer_set_text_alignment(task_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(task_layer));
+
 
 	// Set up menu window, but don't push to stack yet
 	menu_window = window_create();
@@ -328,7 +340,8 @@ static void init(void) {
 static void deinit(void) {
 
   text_layer_destroy(timer_layer);
-  text_layer_destroy(text_layer);
+  text_layer_destroy(project_layer);
+  text_layer_destroy(task_layer);
   window_destroy(window);
 }
 
