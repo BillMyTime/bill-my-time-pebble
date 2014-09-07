@@ -30,12 +30,12 @@ static GFont project_font;
 static GFont task_font;
 
 // holders for menu entries
-static SimpleMenuSection list_menu_sections[1];
-static SimpleMenuItem* list_menu_items;
-static char* menu_action;
-static int page;
-static SimpleMenuItem* project_item;
-static SimpleMenuItem* task_item;
+SimpleMenuSection list_menu_sections[1];
+SimpleMenuItem* list_menu_items;
+char* menu_action;
+int page;
+char* project_title;
+char* task_title;
 
 // Function decs
 void timer_callback(struct tm *tick_time, TimeUnits units_changed);
@@ -245,27 +245,21 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
 		select_action = "selClient";
 	} else if(strcmp(menu_action, "t") == 0) {
 		select_action = "selTask";
-		task_item = (SimpleMenuItem)list_menu_sections[index];
-		text_layer_set_text(task_layer, task_item->title);
+		snprintf(task_title, 40, "Task:\n%s", list_menu_items[index].title);
+		text_layer_set_text(task_layer, task_title);
 	} else if (strcmp(menu_action, "p") == 0) {
 		select_action = "selProj";
-		project_item = (SimpleMenuItem)list_menu_sections[index];
-		text_layer_set_text(task_layer, project_item->title);
+		snprintf(project_title, 40, "Project:\n%s", list_menu_items[index].title);
+		text_layer_set_text(task_layer, project_title);
 	} else {
 		// strcmp failed to find a match
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "No match on strcmp, value of menu_action follows");
 		APP_LOG(APP_LOG_LEVEL_DEBUG, menu_action);
 	}
-	if (index > 0) {
-
-	} else {
-		index = 2;
-	}
 	Tuplet action_type = TupletCString(0, select_action);
 	dict_write_tuplet(iter, &action_type);
 	Tuplet selected = TupletInteger(1, index);
 	dict_write_tuplet(iter, &selected);
-	dict_write_end(iter);
 	app_message_outbox_send(); // this send is causing crash :S
 
 	//pop the menu off
